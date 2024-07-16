@@ -60,7 +60,7 @@ def authorize(user, action):
 
     return action in allowed_actions
 
-def manage_users(action, username, password=None, role=None):
+def manage_users(conn, cursor, action, username, password=None, role=None):
     if action == 'create':
         hashed_password = hash_password(password)
         cursor.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', (username, hashed_password, role))
@@ -72,7 +72,7 @@ def manage_users(action, username, password=None, role=None):
             cursor.execute('UPDATE users SET role = = WHERE username = ?', (role, username))
     elif action == 'delete':
         cursor.execute('DELETE FROM users WHERE username = ?', (username,))
-    con.commit
+    conn.commit
 
 sessions = {}
 
@@ -89,6 +89,13 @@ def get_creds():
     password = input("Enter your password:")
     return username, password
 
+def display_users(cursor):
+    cursor.execute('SELECT * FROM users')
+    users = cursor.fetchall()
+    print("Users in the system: ")
+    for user in users:
+        print(user)
+
 def main():
     conn = sqlite3.connect('iam.db')
     cursor = conn.cursor()
@@ -102,14 +109,55 @@ def main():
                 print(f"Authenticated: {user}")
                 session_token = create_session(user)
                 print(f"Session token: {session_token}")
+                log_event(conn, cursor, 'login', username)
 
                 action = input("Enter action (read, write, delete): ").strip().lower()
                 if authorize(user, action):
                     print("Access granted")
+                    log_event(conn, cursor, 'action', username)
+                    if action == 'read':
+                        display_users(cursor)
                 else:
                     print("Access denied")
             else:
                 print("Incorrect credentials")
+                log_event(conn, cursor, 'incorrect_credentials', username)
+        elif choice == 'manage_users':
+            username, password = get_creds()
+            user = authenticate(conn, cursor, username, password)
+            if user:
+                print(f"Authenticated: {user}")
+                session_token = create_session(user)
+                print(f"Session token: {session_token}")
+                log_event(conn, cursor, 'manage_users', username)
+
+                action = input("Enter action (create, update, delete): ").strip().lower()
+                if user[3] == "admin":
+                    print(f"Access granted")
+                    if action == "create":
+                        username = input("Enter the username: ")
+                        password = input("Enter the password: ")
+                        role = input("Enter the role of the user: ")
+                        manage_users(conn, cursor, action, username, password, role)
+                        print("User created successfully")
+                        log_event(conn, cursor, 'create_user', user[1])
+                    elif action == "update":
+                        username = input("Enter the username: ")
+                        password = input("Enter the new password: ")
+                        manage_users(conn, cursor, update, username, password, role)
+                        print("User updated successfully")
+                        log_event(conn, cursor, 'update_user', user[1])
+                    elif action == "delete":
+                        username = input("Enter the username: ")
+                        manage_users(conn, cursor, delete, username, password, role)
+                        print("User deleted successfully")
+                        log_event(conn, cursor, 'delete_user', user[1])
+
+        elif choice == 'exit':
+            log_event(conn, cursor, 'exit_session', user[1])
+            break
+        else:
+            print("Invalid choice")
 
 if __name__ == '__main__':
     main()
