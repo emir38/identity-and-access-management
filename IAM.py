@@ -93,8 +93,23 @@ def main():
     conn = sqlite3.connect('iam.db')
     cursor = conn.cursor()
     db(conn, cursor)
-    username, password = get_creds()
-    authenticate(conn, cursor, username, password)
+    while True:
+        choice = input("Choose an option(login, manage_users, exit): ").strip().lower()
+        if choice == 'login':
+            username, password = get_creds()
+            user = authenticate(conn, cursor, username, password)
+            if user:
+                print(f"Authenticated: {user}")
+                session_token = create_session(user)
+                print(f"Session token: {session_token}")
+
+                action = input("Enter action (read, write, delete): ").strip().lower()
+                if authorize(user, action):
+                    print("Access granted")
+                else:
+                    print("Access denied")
+            else:
+                print("Incorrect credentials")
 
 if __name__ == '__main__':
     main()
