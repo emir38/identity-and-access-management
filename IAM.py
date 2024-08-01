@@ -21,7 +21,7 @@ def db(conn, cursor):
     CREATE TABLE IF NOT EXISTS events (
         id INTEGER PRIMARY KEY,
         event_type TEXT,
-        username TEST,
+        username TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     ''')
